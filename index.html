@@ -389,7 +389,7 @@ const SK_RATES    = 'fam_shared_rates_v1';
 const SK_ETFS     = id => `fam_etfs_${id}`;
 const SK_HIST     = id => `fam_hist_${id}`;
 const DATA_FILE   = 'data.json';
-const CLOUD_API   = '/.netlify/functions/data';
+const CLOUD_API   = `${window.location.origin}/.netlify/functions/data`;
 const SK_ADMIN_PIN = 'fam_admin_pin_v1';
 
 // ── DEFAULTS ──────────────────────────────────────────────
@@ -569,7 +569,7 @@ async function saveCloudData() {
     applySiteData(collectSiteData());
     showToast('已儲存到雲端，全家重新整理後會看到最新資料');
   } catch(e) {
-    alert('儲存失敗：目前無法連線到 Netlify Function。請確認網站已用 Git 或 Netlify CLI 部署，並且 Functions 頁面有 data。');
+    alert(`儲存失敗：目前無法連線到 Netlify Function。\n\n錯誤：${e.message || e}\n\n請先關閉分頁重新開啟；若仍失敗，請清除這個網站的快取。`);
   }
 }
 
