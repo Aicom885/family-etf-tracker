@@ -528,7 +528,7 @@ function exportDataJSON() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('已下載資料檔，重新命名為 data.json 後部署到 Netlify');
+  showCopyToast('已下載資料檔，重新命名為 data.json 後部署到 Netlify');
 }
 
 async function saveCloudData() {
@@ -567,7 +567,7 @@ async function saveCloudData() {
     }
 
     applySiteData(collectSiteData());
-    showToast('已儲存到雲端，全家重新整理後會看到最新資料');
+    showCopyToast('已儲存到雲端，全家重新整理後會看到最新資料');
   } catch(e) {
     alert(`儲存失敗：目前無法連線到 Netlify Function。\n\n錯誤：${e.message || e}\n\n請先關閉分頁重新開啟；若仍失敗，請清除這個網站的快取。`);
   }
