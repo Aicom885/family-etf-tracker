@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="theme-color" content="#000000">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETF 家庭配息追蹤</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #000000;
+    --surface: #111827;
+    --surface2: #1c2535;
+    --border: #2a3547;
+    --accent: #f0b429;
+    --accent2: #38bdf8;
+    --accent3: #34d399;
+    --danger: #f87171;
+    --purple: #a78bfa;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --card-glow: 0 0 30px rgba(240,180,41,0.07);
+  }
+
+  html { background: #000000; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans TC', sans-serif; min-height: 100vh; padding: 0 0 80px; }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, #111111 0%, #000000 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px 0;
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .header-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .header-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.05rem; color: var(--accent); letter-spacing: 0.04em; }
+  .header-sub { font-size: 0.62rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .fx-box { display: flex; align-items: center; gap: 5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 5px 9px; }
+  .fx-label { font-size: 0.6rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .fx-input { width: 54px; background: transparent; border: none; outline: none; color: var(--accent); font-family: 'DM Mono', monospace; font-size: 0.85rem; font-weight: 500; text-align: right; }
+  .fx-refresh-btn { background: none; border: none; cursor: pointer; font-size: 0.88rem; padding: 0 0 0 2px; line-height: 1; }
+  .fx-refresh-btn.spinning { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .fx-status { font-size: 0.52rem; color: var(--muted); font-family: 'DM Mono', monospace; text-align: right; margin-top: 1px; }
+  .fx-status.ok { color: var(--accent3); }
+  .fx-status.err { color: var(--danger); }
+
+  /* ── TABS ── */
+  .member-tabs { display: flex; overflow-x: auto; scrollbar-width: none; border-top: 1px solid var(--border); }
+  .member-tabs::-webkit-scrollbar { display: none; }
+  .member-tab {
+    flex: 0 0 auto; padding: 9px 14px 8px;
+    font-family: 'Syne', sans-serif; font-size: 0.78rem; font-weight: 600;
+    color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent; border-top: none; border-left: none; border-right: none;
+    white-space: nowrap; background: none; letter-spacing: 0.03em; transition: color 0.15s;
+  }
+  .member-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .member-tab .tab-ntd { display: block; font-family: 'DM Mono', monospace; font-size: 0.54rem; font-weight: 400; color: var(--accent3); margin-top: 1px; }
+  .tab-add-btn { flex: 0 0 auto; padding: 9px 14px 8px; font-size: 1rem; color: var(--muted); cursor: pointer; background: none; border: none; border-bottom: 2px solid transparent; }
+  .tab-add-btn:active { color: var(--accent); }
+
+  /* ── FAMILY BANNER ── */
+  .family-banner { margin: 10px 16px 0; background: linear-gradient(135deg, rgba(240,180,41,0.08), rgba(56,189,248,0.06)); border: 1px solid rgba(240,180,41,0.2); border-radius: 10px; padding: 9px 14px; display: flex; align-items: center; justify-content: space-between; }
+  .family-label { font-size: 0.62rem; color: var(--accent); font-family: 'DM Mono', monospace; letter-spacing: 0.05em; }
+  .family-vals { text-align: right; }
+  .family-usd { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--accent2); }
+  .family-ntd { font-family: 'DM Mono', monospace; font-size: 0.95rem; color: var(--accent); font-weight: 500; }
+
+  /* ── SYNC BADGE ── */
+  .sync-notice { margin: 8px 16px 0; background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.25); border-radius: 8px; padding: 6px 12px; font-size: 0.62rem; color: var(--purple); font-family: 'DM Mono', monospace; line-height: 1.5; }
+
+  /* ── SUMMARY ── */
+  .summary-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 16px 0; }
+  .sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; text-align: center; }
+  .sum-label { font-size: 0.57rem; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 0.06em; margin-bottom: 3px; }
+  .sum-val { font-family: 'DM Mono', monospace; font-size: 0.98rem; font-weight: 500; }
+  .sum-val.gold { color: var(--accent); }
+  .sum-val.blue { color: var(--accent2); }
+
+  /* ── ACTIONS ── */
+  .action-row { display: flex; gap: 10px; padding: 9px 16px 0; }
+  .btn-reset { flex: 1; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); color: var(--danger); border-radius: 9px; font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700; padding: 9px 6px; cursor: pointer; }
+  .btn-reset:active { background: rgba(248,113,113,0.22); }
+  .btn-save-month { flex: 1; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3); color: var(--accent3); border-radius: 9px; font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700; padding: 9px 6px; cursor: pointer; }
+  .btn-save-month:active { background: rgba(52,211,153,0.22); }
+  .btn-export { flex: 1; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: var(--accent2); border-radius: 9px; font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700; padding: 9px 6px; cursor: pointer; }
+  .btn-export:active { background: rgba(56,189,248,0.22); }
+  .btn-export-all { flex: 1; background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3); color: var(--purple); border-radius: 9px; font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700; padding: 9px 6px; cursor: pointer; }
+  .btn-export-all:active { background: rgba(167,139,250,0.22); }
+
+  /* ── ETF CARDS ── */
+  .etf-list { padding: 10px 16px 0; display: flex; flex-direction: column; gap: 11px; }
+  .etf-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .etf-card:focus-within { border-color: var(--accent); }
+
+  /* Sync indicator on card header */
+  .etf-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 8px; border-bottom: 1px solid var(--border); gap: 8px; }
+  .etf-header-left { display: flex; align-items: center; gap: 8px; }
+  .etf-ticker { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.15rem; color: var(--accent); letter-spacing: 0.06em; }
+  .sync-dot { font-size: 0.58rem; color: var(--purple); font-family: 'DM Mono', monospace; background: rgba(167,139,250,0.12); border-radius: 4px; padding: 2px 6px; letter-spacing: 0.04em; }
+  .private-dot { font-size: 0.58rem; color: var(--accent2); font-family: 'DM Mono', monospace; background: rgba(56,189,248,0.1); border-radius: 4px; padding: 2px 6px; letter-spacing: 0.04em; }
+  .etf-shares-wrap { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; }
+  .etf-shares-label { font-size: 0.57rem; color: var(--muted); font-family: 'DM Mono', monospace; white-space: nowrap; }
+  .etf-shares-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--accent2); font-family: 'DM Mono', monospace; font-size: 0.85rem; font-weight: 500; padding: 4px 7px; width: 85px; text-align: right; outline: none; }
+  .etf-shares-input:focus { border-color: var(--accent2); }
+  .etf-delete-btn { background: none; border: none; color: var(--muted); font-size: 0.75rem; cursor: pointer; padding: 4px 5px; font-family: 'DM Mono', monospace; }
+  .etf-delete-btn:active { color: var(--danger); }
+
+  /* Week rows */
+  .week-rows { padding: 8px 14px 3px; }
+  .week-row-title { font-size: 0.58rem; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .week-row { display: flex; align-items: center; gap: 7px; padding: 5px 0; border-bottom: 1px solid rgba(42,53,71,0.5); }
+  .week-row:last-child { border-bottom: none; }
+  .wk-num { font-family: 'DM Mono', monospace; font-size: 0.62rem; color: var(--muted); min-width: 18px; }
+  .wk-rate-wrap { display: flex; flex-direction: column; flex: 1; }
+  .wk-rate-label { font-size: 0.54rem; color: var(--muted); margin-bottom: 2px; }
+  .wk-rate-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--accent); font-family: 'DM Mono', monospace; font-size: 0.82rem; padding: 3px 7px; width: 100%; outline: none; }
+  .wk-rate-input.synced { border-color: rgba(167,139,250,0.4); }
+  .wk-rate-input:focus { border-color: var(--accent) !important; }
+  .wk-result { text-align: right; min-width: 90px; }
+  .wk-usd { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--accent2); }
+  .wk-ntd { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--accent3); font-weight: 500; }
+
+  .etf-total-row { display: flex; justify-content: space-between; align-items: center; background: rgba(240,180,41,0.06); margin: 0 14px 10px; border-radius: 8px; padding: 6px 12px; border: 1px solid rgba(240,180,41,0.14); }
+  .etf-total-label { font-size: 0.63rem; color: var(--accent); font-family: 'DM Mono', monospace; }
+  .etf-total-vals { text-align: right; }
+  .etf-total-usd { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--accent2); }
+  .etf-total-ntd { font-family: 'DM Mono', monospace; font-size: 0.88rem; color: var(--accent); font-weight: 500; }
+
+  /* ── ADD ETF ── */
+  .add-section { padding: 10px 16px 0; }
+  .add-btn { width: 100%; background: var(--surface); border: 1.5px dashed var(--border); border-radius: 12px; color: var(--muted); font-family: 'Syne', sans-serif; font-size: 0.8rem; padding: 12px; cursor: pointer; letter-spacing: 0.04em; }
+  .add-btn:active { background: var(--surface2); color: var(--accent); border-color: var(--accent); }
+  .add-form { background: var(--surface); border: 1px solid var(--accent); border-radius: 14px; padding: 14px; display: none; margin-bottom: 10px; }
+  .add-form.open { display: block; }
+  .form-title { font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 700; color: var(--accent); margin-bottom: 10px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .form-field label { display: block; font-size: 0.57rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 3px; letter-spacing: 0.05em; }
+  .form-field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.82rem; padding: 6px 9px; outline: none; }
+  .form-field input:focus { border-color: var(--accent); }
+
+  /* Sync toggle in add form */
+  .form-sync-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 8px 10px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+  .form-sync-label { flex: 1; font-size: 0.68rem; color: var(--text); font-family: 'Noto Sans TC', sans-serif; }
+  .form-sync-sub { font-size: 0.58rem; color: var(--muted); display: block; }
+  .toggle-wrap { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+  .toggle-wrap input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 22px; transition: background 0.2s; cursor: pointer; }
+  .toggle-slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
+  .toggle-wrap input:checked + .toggle-slider { background: var(--purple); }
+  .toggle-wrap input:checked + .toggle-slider:before { transform: translateX(16px); }
+
+  .form-actions { display: flex; gap: 10px; }
+  .btn-confirm { flex: 1; background: var(--accent); color: #0a0e17; border: none; border-radius: 8px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.82rem; padding: 9px; cursor: pointer; }
+  .btn-cancel { flex: 1; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 0.82rem; padding: 9px; cursor: pointer; }
+
+  /* ── HISTORY ── */
+  .history-section { padding: 12px 16px 0; }
+  .history-title { font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 700; color: var(--text); margin-bottom: 9px; display: flex; align-items: center; justify-content: space-between; }
+  .history-clear { font-size: 0.6rem; color: var(--danger); font-family: 'DM Mono', monospace; background: none; border: 1px solid var(--border); border-radius: 5px; padding: 3px 7px; cursor: pointer; }
+  .history-empty { font-size: 0.7rem; color: var(--muted); font-family: 'DM Mono', monospace; text-align: center; padding: 16px 0; }
+  .history-list { display: flex; flex-direction: column; gap: 7px; }
+  .history-row { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 14px; display: flex; align-items: center; justify-content: space-between; }
+  .hist-month { font-family: 'DM Mono', monospace; font-size: 0.76rem; color: var(--muted); }
+  .hist-vals { text-align: right; }
+  .hist-usd { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--accent2); }
+  .hist-ntd { font-family: 'DM Mono', monospace; font-size: 0.88rem; color: var(--accent3); font-weight: 500; }
+
+  /* ── MEMBER MANAGE ── */
+  .member-manage-section { padding: 12px 16px 0; }
+  .member-manage-title { font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+  .member-manage-list { display: flex; flex-direction: column; gap: 7px; }
+  .member-manage-row { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px; }
+  .member-name-display { flex: 1; font-family: 'Syne', sans-serif; font-size: 0.82rem; }
+  .member-rename-btn { background: none; border: 1px solid var(--border); border-radius: 5px; color: var(--muted); font-size: 0.62rem; font-family: 'DM Mono', monospace; padding: 3px 7px; cursor: pointer; }
+  .member-del-btn { background: none; border: 1px solid var(--border); border-radius: 5px; color: var(--danger); font-size: 0.62rem; font-family: 'DM Mono', monospace; padding: 3px 7px; cursor: pointer; }
+
+  /* ── MODALS ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 300; align-items: flex-end; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px 16px 0 0; padding: 22px 20px 32px; width: 100%; max-width: 480px; text-align: center; }
+  .modal-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .modal-title.danger { color: var(--danger); }
+  .modal-title.green { color: var(--accent3); }
+  .modal-title.blue { color: var(--accent2); }
+  .modal-body { font-size: 0.78rem; color: var(--muted); margin-bottom: 16px; line-height: 1.55; }
+  .modal-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Noto Sans TC', sans-serif; font-size: 0.9rem; padding: 9px 12px; outline: none; margin-bottom: 14px; text-align: center; }
+  .modal-input:focus { border-color: var(--accent2); }
+  .month-picker { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.9rem; padding: 8px 12px; width: 100%; outline: none; margin-bottom: 14px; text-align: center; }
+  .modal-actions { display: flex; gap: 10px; }
+  .mc-danger { flex: 1; background: var(--danger); color: white; border: none; border-radius: 8px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.82rem; padding: 11px; cursor: pointer; }
+  .mc-green { flex: 1; background: var(--accent3); color: #0a0e17; border: none; border-radius: 8px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.82rem; padding: 11px; cursor: pointer; }
+  .mc-blue { flex: 1; background: var(--accent2); color: #0a0e17; border: none; border-radius: 8px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.82rem; padding: 11px; cursor: pointer; }
+  .mc-cancel { flex: 1; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 0.82rem; padding: 11px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div>
+      <div class="header-title">👨‍👩‍👧‍👦 家庭 ETF 配息追蹤</div>
+      <div class="header-sub">WEEKLY · AFTER 30% TAX</div>
+    </div>
+    <div>
+      <div class="fx-box">
+        <span class="fx-label">USD/NTD</span>
+        <input class="fx-input" id="fxRate" type="number" value="31.56" step="0.01" min="1" oninput="renderAll()">
+        <button class="fx-refresh-btn" id="fxRefreshBtn" onclick="fetchFxRate()">🔄</button>
+      </div>
+      <div class="fx-status" id="fxStatus">手動模式</div>
+    </div>
+  </div>
+  <div class="member-tabs" id="memberTabs"></div>
+</header>
+
+<div class="family-banner">
+  <div class="family-label">🏠 全家月配息合計</div>
+  <div class="family-vals">
+    <div class="family-usd" id="familyUSD">—</div>
+    <div class="family-ntd" id="familyNTD">—</div>
+  </div>
+</div>
+
+<div class="sync-notice">
+  🔄 紫色標籤 = 配息率全家同步 &nbsp;|&nbsp; 藍色標籤 = 此人專屬（不同步）<br>
+  在任一成員更改同步ETF的週配息率，所有人會自動更新。
+</div>
+
+<div class="summary-strip">
+  <div class="sum-card">
+    <div class="sum-label" id="memberUSDLabel">本月配息 USD</div>
+    <div class="sum-val blue" id="totalUSD">—</div>
+  </div>
+  <div class="sum-card">
+    <div class="sum-label" id="memberNTDLabel">本月配息 NTD</div>
+    <div class="sum-val gold" id="totalNTD">—</div>
+  </div>
+</div>
+
+<div class="action-row">
+  <button class="btn-reset" onclick="openResetModal()">🗑 清除本月配息率</button>
+  <button class="btn-save-month" onclick="openSaveModal()">💾 儲存本月紀錄</button>
+</div>
+<div class="action-row" style="padding-top:8px;">
+  <button class="btn-export" onclick="exportCSV('current')">📋 複製本人紀錄</button>
+  <button class="btn-export-all" onclick="exportCSV('all')">🏠 複製全家紀錄</button>
+  <button class="btn-export-all" onclick="exportDataJSON()">⬇ 匯出資料檔</button>
+</div>
+<div class="action-row" style="padding-top:8px;">
+  <button class="btn-save-month" onclick="saveCloudData()">☁ 儲存到雲端</button>
+</div>
+
+<div id="etfList" class="etf-list"></div>
+
+<div class="add-section">
+  <div id="addForm" class="add-form">
+    <div class="form-title">➕ 新增 ETF</div>
+    <div class="form-grid">
+      <div class="form-field"><label>代號 TICKER</label><input id="f_ticker" placeholder="e.g. TSLY" style="text-transform:uppercase"></div>
+      <div class="form-field"><label>股數 SHARES</label><input id="f_shares" type="number" placeholder="100" min="1"></div>
+    </div>
+    <div class="form-sync-row">
+      <div class="form-sync-label">
+        🔄 全家同步配息率
+        <span class="form-sync-sub">開啟：此ETF配息率與所有成員共用；關閉：僅此成員專屬</span>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" id="f_sync" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="btn-confirm" onclick="confirmAdd()">確認新增</button>
+      <button class="btn-cancel" onclick="closeAddForm()">取消</button>
+    </div>
+  </div>
+  <button class="add-btn" id="addBtn" onclick="openAddForm()">＋ 新增 ETF</button>
+</div>
+
+<div class="history-section">
+  <div class="history-title">
+    <span>📅 <span id="historyMemberName">—</span> 的月配息紀錄</span>
+    <button class="history-clear" onclick="openClearHistoryModal()">清除歷史</button>
+  </div>
+  <div id="historyList"></div>
+</div>
+
+<div class="member-manage-section">
+  <div class="member-manage-title">👥 成員管理</div>
+  <div class="member-manage-list" id="memberManageList"></div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="resetModal">
+  <div class="modal-box">
+    <div class="modal-title danger">🗑 清除本月配息率？</div>
+    <div class="modal-body">同步ETF的配息率將對<strong>所有成員</strong>清零；<br>此人專屬ETF只清此人的。</div>
+    <div class="modal-actions">
+      <button class="mc-danger" onclick="confirmReset()">確認清除</button>
+      <button class="mc-cancel" onclick="closeModal('resetModal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="saveModal">
+  <div class="modal-box">
+    <div class="modal-title green">💾 儲存本月配息紀錄</div>
+    <div class="modal-body">將記錄目前成員的本月配息總金額。</div>
+    <input class="month-picker" type="month" id="saveMonthInput">
+    <div class="modal-actions">
+      <button class="mc-green" onclick="confirmSaveMonth()">確認儲存</button>
+      <button class="mc-cancel" onclick="closeModal('saveModal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteEtfModal">
+  <div class="modal-box">
+    <div class="modal-title danger">確認刪除 ETF？</div>
+    <div class="modal-body" id="deleteEtfBody"></div>
+    <div class="modal-actions">
+      <button class="mc-danger" onclick="confirmDeleteEtf()">確認刪除</button>
+      <button class="mc-cancel" onclick="closeModal('deleteEtfModal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="clearHistModal">
+  <div class="modal-box">
+    <div class="modal-title danger">清除歷史紀錄？</div>
+    <div class="modal-body">將清除此成員所有月份紀錄，不可復原。</div>
+    <div class="modal-actions">
+      <button class="mc-danger" onclick="confirmClearHistory()">確認清除</button>
+      <button class="mc-cancel" onclick="closeModal('clearHistModal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="addMemberModal">
+  <div class="modal-box">
+    <div class="modal-title blue">➕ 新增成員</div>
+    <div class="modal-body">輸入成員姓名或稱呼</div>
+    <input class="modal-input" type="text" id="newMemberName" placeholder="例：小孩1、媽媽" maxlength="10">
+    <div class="modal-actions">
+      <button class="mc-blue" onclick="confirmAddMember()">確認新增</button>
+      <button class="mc-cancel" onclick="closeModal('addMemberModal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="renameMemberModal">
+  <div class="modal-box">
+    <div class="modal-title blue">✏️ 修改名稱</div>
+    <div class="modal-body"></div>
+    <input class="modal-input" type="text" id="renameMemberInput" placeholder="新名稱" maxlength="10">
+    <div class="modal-actions">
+      <button class="mc-blue" onclick="confirmRenameMember()">確認修改</button>
+      <button class="mc-cancel" onclick="closeModal('renameMemberModal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteMemberModal">
+  <div class="modal-box">
+    <div class="modal-title danger">刪除成員？</div>
+    <div class="modal-body" id="deleteMemberBody"></div>
+    <div class="modal-actions">
+      <button class="mc-danger" onclick="confirmDeleteMember()">確認刪除</button>
+      <button class="mc-cancel" onclick="closeModal('deleteMemberModal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  STORAGE SCHEMA
+//  shared_rates   : { [ticker]: [w1,w2,w3,w4] }   ← synced ETFs rates
+//  members        : [ { id, name } ]
+//  member_etfs_ID : [ { ticker, shares, synced } ]  ← per member holdings
+//  member_hist_ID : [ { month, usd, ntd } ]
+// ══════════════════════════════════════════════════════════
+const SK_MEMBERS  = 'fam_members_v1';
+const SK_RATES    = 'fam_shared_rates_v1';
+const SK_ETFS     = id => `fam_etfs_${id}`;
+const SK_HIST     = id => `fam_hist_${id}`;
+const DATA_FILE   = 'data.json';
+const CLOUD_API   = '/.netlify/functions/data';
+const SK_ADMIN_PIN = 'fam_admin_pin_v1';
+
+// ── DEFAULTS ──────────────────────────────────────────────
+const DEFAULT_MEMBERS = [
+  { id: 'm1', name: '呂憲政' },
+  { id: 'm2', name: '妻子' },
+  { id: 'm3', name: '小孩1' },
+  { id: 'm4', name: '小孩2' },
+];
+// Shared rates (TSLY, NVDY, MSTY)
+const DEFAULT_RATES = {
+  TSLY: [0.2585, 0.2584, 0.2670, 0.2955, 0],
+  NVDY: [0.1148, 0.1111, 0.1161, 0.1401, 0],
+  MSTY: [0.3137, 0.3051, 0.3038, 0.5211, 0],
+  CONY: [0, 0, 0, 0, 0],
+};
+// Per-member holdings: ticker + shares + synced flag
+const DEFAULT_ETFS = {
+  m1: [
+    { ticker: 'TSLY', shares: 90,   synced: true },
+    { ticker: 'NVDY', shares: 1570, synced: true },
+    { ticker: 'MSTY', shares: 87,   synced: true },
+  ],
+  m2: [
+    { ticker: 'TSLY', shares: 0,  synced: true },
+    { ticker: 'NVDY', shares: 0,  synced: true },
+    { ticker: 'MSTY', shares: 0,  synced: true },
+    { ticker: 'CONY', shares: 0,  synced: false }, // wife-only
+  ],
+  m3: [
+    { ticker: 'TSLY', shares: 0, synced: true },
+    { ticker: 'NVDY', shares: 0, synced: true },
+    { ticker: 'MSTY', shares: 0, synced: true },
+  ],
+  m4: [
+    { ticker: 'TSLY', shares: 0, synced: true },
+    { ticker: 'NVDY', shares: 0, synced: true },
+    { ticker: 'MSTY', shares: 0, synced: true },
+  ],
+};
+
+// ── LOAD / SAVE ───────────────────────────────────────────
+function load(key, fallback) {
+  try { const r = localStorage.getItem(key); if (r) return JSON.parse(r); } catch(e) {}
+  return typeof fallback === 'function' ? fallback() : fallback;
+}
+function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
+function hasSavedLocalData() { return !!localStorage.getItem(SK_MEMBERS); }
+
+function cloneData(data) {
+  return JSON.parse(JSON.stringify(data));
+}
+
+function applySiteData(data) {
+  if (!data || typeof data !== 'object') return;
+  if (Array.isArray(data.members)) {
+    members = cloneData(data.members);
+    save(SK_MEMBERS, members);
+  }
+  if (data.sharedRates && typeof data.sharedRates === 'object') {
+    sharedRates = cloneData(data.sharedRates);
+    save(SK_RATES, sharedRates);
+  }
+  if (data.memberEtfs && typeof data.memberEtfs === 'object') {
+    Object.entries(data.memberEtfs).forEach(([mid, etfs]) => {
+      if (Array.isArray(etfs)) saveMemberEtfs(mid, cloneData(etfs));
+    });
+  }
+  if (data.memberHistory && typeof data.memberHistory === 'object') {
+    Object.entries(data.memberHistory).forEach(([mid, history]) => {
+      if (Array.isArray(history)) saveHistory(mid, cloneData(history));
+    });
+  }
+  if (members.length && !members.some(m => m.id === activeMemberId)) {
+    activeMemberId = members[0].id;
+  }
+}
+
+async function loadSiteData() {
+  try {
+    const cloudRes = await fetch(CLOUD_API + '?v=' + Date.now(), { cache: 'no-store' });
+    if (cloudRes.ok) {
+      const cloudData = await cloudRes.json();
+      applySiteData(cloudData);
+      loadedFromCloud = true;
+      const status = document.getElementById('fxStatus');
+      if (status) status.textContent = '已載入雲端資料';
+      return;
+    }
+  } catch(e) {
+    console.warn('雲端資料載入失敗，改讀 data.json', e);
+  }
+
+  if (hasSavedLocalData()) {
+    const status = document.getElementById('fxStatus');
+    if (status) status.textContent = '使用本機已儲存資料';
+    return;
+  }
+
+  try {
+    const res = await fetch(DATA_FILE + '?v=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    applySiteData(data);
+    const status = document.getElementById('fxStatus');
+    if (status) status.textContent = '已載入 data.json';
+  } catch(e) {
+    console.warn('data.json 載入失敗，使用本機資料', e);
+  }
+}
+
+function collectSiteData() {
+  const memberEtfs = {};
+  const memberHistory = {};
+  members.forEach(m => {
+    memberEtfs[m.id] = loadMemberEtfs(m.id);
+    memberHistory[m.id] = loadHistory(m.id);
+  });
+  return {
+    members,
+    sharedRates,
+    memberEtfs,
+    memberHistory
+  };
+}
+
+function exportDataJSON() {
+  const json = JSON.stringify(collectSiteData(), null, 2);
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const today = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `data-${today}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('已下載資料檔，重新命名為 data.json 後部署到 Netlify');
+}
+
+async function saveCloudData() {
+  let pin = sessionStorage.getItem(SK_ADMIN_PIN) || '';
+  if (!pin) {
+    pin = prompt('請輸入管理 PIN，只有管理人可以儲存到雲端');
+    if (!pin) return;
+    sessionStorage.setItem(SK_ADMIN_PIN, pin);
+  }
+
+  try {
+    const res = await fetch(CLOUD_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-pin': pin
+      },
+      body: JSON.stringify(collectSiteData())
+    });
+    const rawText = await res.text();
+    let result = {};
+    try { result = rawText ? JSON.parse(rawText) : {}; } catch(e) {}
+
+    if (res.status === 401) {
+      sessionStorage.removeItem(SK_ADMIN_PIN);
+      alert('管理 PIN 不正確，請重新輸入。');
+      return;
+    }
+    if (res.status === 404) {
+      alert('找不到 Netlify Function。請確認不是只用拖拉上傳靜態檔，雲端儲存需要用 Git 或 Netlify CLI 部署整個專案。');
+      return;
+    }
+    if (!res.ok) {
+      alert(result.error || `儲存失敗，Netlify 回傳 HTTP ${res.status}。請到 Netlify 的 Functions / Deploy logs 查看 data function。`);
+      return;
+    }
+
+    applySiteData(collectSiteData());
+    showToast('已儲存到雲端，全家重新整理後會看到最新資料');
+  } catch(e) {
+    alert('儲存失敗：目前無法連線到 Netlify Function。請確認網站已用 Git 或 Netlify CLI 部署，並且 Functions 頁面有 data。');
+  }
+}
+
+let members      = load(SK_MEMBERS, () => DEFAULT_MEMBERS.map(m => ({...m})));
+let sharedRates  = load(SK_RATES,   () => cloneData(DEFAULT_RATES));
+
+function loadMemberEtfs(mid)    { return load(SK_ETFS(mid), () => JSON.parse(JSON.stringify(DEFAULT_ETFS[mid] || []))); }
+function saveMemberEtfs(mid, d) { save(SK_ETFS(mid), d); }
+function loadHistory(mid)       { return load(SK_HIST(mid), []); }
+function saveHistory(mid, h)    { save(SK_HIST(mid), h); }
+
+let activeMemberId = members[0].id;
+let pendingDeleteEtfTicker = null;
+let pendingRenameMemberId  = null;
+let pendingDeleteMemberId  = null;
+
+// ── FX ────────────────────────────────────────────────────
+async function fetchFxRate() {
+  const btn = document.getElementById('fxRefreshBtn');
+  const status = document.getElementById('fxStatus');
+  btn.classList.add('spinning');
+  status.textContent = '抓取中...'; status.className = 'fx-status';
+  try {
+    const res = await fetch('https://api.frankfurter.dev/v1/latest?base=USD&symbols=TWD', { signal: AbortSignal.timeout(5000) });
+    if (res.ok) { const d = await res.json(); if (d.rates && d.rates.TWD) { setFxRate(d.rates.TWD, '自動更新 · ' + d.date); return; } }
+  } catch(e) {}
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD', { signal: AbortSignal.timeout(5000) });
+    if (res.ok) { const d = await res.json(); if (d.rates && d.rates.TWD) { setFxRate(d.rates.TWD, '自動更新 · ER-API'); return; } }
+  } catch(e) {}
+  btn.classList.remove('spinning');
+  document.getElementById('fxStatus').textContent = '抓取失敗，請手動輸入';
+  document.getElementById('fxStatus').className = 'fx-status err';
+}
+function setFxRate(rate, text) {
+  document.getElementById('fxRate').value = Math.round(rate * 100) / 100;
+  document.getElementById('fxRefreshBtn').classList.remove('spinning');
+  const s = document.getElementById('fxStatus'); s.textContent = text; s.className = 'fx-status ok';
+  renderAll();
+}
+function fxRate() { return parseFloat(document.getElementById('fxRate').value) || 31.56; }
+
+// ── CALC ──────────────────────────────────────────────────
+function getWeeks(etfEntry) {
+  if (etfEntry.synced) return sharedRates[etfEntry.ticker] || [0,0,0,0,0];
+  return etfEntry.privateWeeks || [0,0,0,0,0];
+}
+
+function getMemberTotal(mid) {
+  const etfs = loadMemberEtfs(mid);
+  const fx = fxRate();
+  let tUSD = 0, tNTD = 0;
+  etfs.forEach(e => {
+    const weeks = getWeeks(e);
+    for(let i=0;i<5;i++) { const u = e.shares*(weeks[i]||0)*0.7; tUSD+=u; tNTD+=u*fx; }
+  });
+  return { tUSD, tNTD };
+}
+
+// ── CSV EXPORT ────────────────────────────────────────────
+function exportCSV(mode) {
+  const BOM = '\uFEFF';
+  const fx = fxRate();
+  let rows = [];
+
+  if (mode === 'current') {
+    // Export current member history
+    const m = members.find(x => x.id === activeMemberId);
+    rows.push(['成員', '月份', '配息USD', '配息NTD(即時匯率)', '匯率']);
+    const history = loadHistory(activeMemberId);
+    const sorted = [...history].sort((a,b) => a.month.localeCompare(b.month));
+    sorted.forEach(h => {
+      rows.push([m.name, h.month, h.usd.toFixed(2), Math.round(h.usd * fx), fx]);
+    });
+    // Also add current month ETF detail
+    rows.push([]);
+    rows.push(['--- ETF 明細 ---']);
+    rows.push(['ETF', '股數', 'W1配息率', 'W2配息率', 'W3配息率', 'W4配息率', 'W5配息率', '月配息USD', '月配息NTD']);
+    const etfs = loadMemberEtfs(activeMemberId);
+    etfs.forEach(e => {
+      const weeks = getWeeks(e);
+      const usd = weeks.reduce((s,r) => s + e.shares*r*0.7, 0);
+      rows.push([e.ticker, e.shares, weeks[0], weeks[1], weeks[2], weeks[3], weeks[4]||0, usd.toFixed(2), Math.round(usd*fx)]);
+    });
+    copyToClipboard(rows.map(r => r.join(',')).join('\n'), m.name + ' 配息紀錄');
+
+  } else {
+    // Export all members summary
+    rows.push(['成員', '月份', '配息USD', '配息NTD(即時匯率)', '匯率']);
+    members.forEach(m => {
+      const history = loadHistory(m.id);
+      const sorted = [...history].sort((a,b) => a.month.localeCompare(b.month));
+      sorted.forEach(h => {
+        rows.push([m.name, h.month, h.usd.toFixed(2), Math.round(h.usd * fx), fx]);
+      });
+    });
+    // Family monthly totals
+    rows.push([]);
+    rows.push(['--- 全家月配息合計 ---']);
+    rows.push(['月份', ...members.map(m => m.name), '合計USD', '合計NTD']);
+    // Collect all months
+    const allMonths = new Set();
+    members.forEach(m => loadHistory(m.id).forEach(h => allMonths.add(h.month)));
+    [...allMonths].sort().forEach(month => {
+      const vals = members.map(m => {
+        const h = loadHistory(m.id).find(x => x.month === month);
+        return h ? h.usd : 0;
+      });
+      const total = vals.reduce((s,v) => s+v, 0);
+      rows.push([month, ...vals.map(v => v.toFixed(2)), total.toFixed(2), Math.round(total*fx)]);
+    });
+    copyToClipboard(rows.map(r => r.join(',')).join('\n'), '全家配息紀錄');
+  }
+}
+
+function copyToClipboard(text, label) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showCopyToast(label + ' 已複製到剪貼簿！\n可貼到 Excel、Notes 或 Line。');
+    }).catch(() => {
+      fallbackCopy(text, label);
+    });
+  } else {
+    fallbackCopy(text, label);
+  }
+}
+
+function fallbackCopy(text, label) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try {
+    document.execCommand('copy');
+    showCopyToast(label + ' 已複製到剪貼簿！\n可貼到 Excel、Notes 或 Line。');
+  } catch(e) {
+    showCopyToast('複製失敗，請長按內容手動複製。');
+  }
+  document.body.removeChild(ta);
+}
+
+function showCopyToast(msg) {
+  let toast = document.getElementById('copyToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'copyToast';
+    toast.style.cssText = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#34d399;color:#0a0e17;font-family:Syne,sans-serif;font-weight:700;font-size:0.82rem;padding:12px 20px;border-radius:12px;z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(52,211,153,0.4);max-width:280px;line-height:1.5;white-space:pre-line;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.style.transition = 'opacity 0.4s';
+    toast.style.opacity = '0';
+    setTimeout(() => { toast.style.display = 'none'; toast.style.transition = ''; }, 400);
+  }, 2500);
+}
+
+// ── RENDER ALL ────────────────────────────────────────────
+function renderAll() {
+  save(SK_RATES, sharedRates);
+  renderTabs();
+  renderFamilyBanner();
+  renderMemberView();
+  renderMemberManage();
+}
+
+function renderTabs() {
+  const c = document.getElementById('memberTabs');
+  c.innerHTML = '';
+  members.forEach(m => {
+    const { tNTD } = getMemberTotal(m.id);
+    const btn = document.createElement('button');
+    btn.className = 'member-tab' + (m.id === activeMemberId ? ' active' : '');
+    btn.innerHTML = `${m.name}<span class="tab-ntd">NT$${tNTD > 0 ? Math.round(tNTD).toLocaleString() : '—'}</span>`;
+    btn.onclick = () => { activeMemberId = m.id; renderAll(); };
+    c.appendChild(btn);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'tab-add-btn'; addBtn.textContent = '＋';
+  addBtn.onclick = () => openModal('addMemberModal');
+  c.appendChild(addBtn);
+}
+
+function renderFamilyBanner() {
+  let fUSD = 0, fNTD = 0;
+  members.forEach(m => { const t = getMemberTotal(m.id); fUSD += t.tUSD; fNTD += t.tNTD; });
+  document.getElementById('familyUSD').textContent = '$' + fUSD.toFixed(2);
+  document.getElementById('familyNTD').textContent = 'NT$' + Math.round(fNTD).toLocaleString();
+}
+
+function renderMemberView() {
+  const m = members.find(x => x.id === activeMemberId);
+  if (!m) return;
+  const { tUSD, tNTD } = getMemberTotal(m.id);
+  document.getElementById('memberUSDLabel').textContent = `${m.name} · USD`;
+  document.getElementById('memberNTDLabel').textContent = `${m.name} · NTD`;
+  document.getElementById('totalUSD').textContent = '$' + tUSD.toFixed(2);
+  document.getElementById('totalNTD').textContent = 'NT$' + Math.round(tNTD).toLocaleString();
+  document.getElementById('historyMemberName').textContent = m.name;
+
+  const etfs = loadMemberEtfs(m.id);
+  const container = document.getElementById('etfList');
+  container.innerHTML = '';
+  etfs.forEach(e => container.appendChild(buildETFCard(e)));
+
+  renderHistory();
+}
+
+function buildETFCard(etfEntry) {
+  const { ticker, shares, synced } = etfEntry;
+  const weeks = getWeeks(etfEntry);
+  let mUSD = 0, mNTD = 0;
+
+  const wHTML = [0,1,2,3,4].map(wi => {
+    const rate = weeks[wi] || 0;
+    const usd = shares * rate * 0.7;
+    const ntd = usd * fxRate();
+    mUSD += usd; mNTD += ntd;
+    const syncedClass = synced ? ' synced' : '';
+    return `<div class="week-row">
+      <div class="wk-num">W${wi+1}</div>
+      <div class="wk-rate-wrap">
+        <div class="wk-rate-label">${synced ? '配息率（同步）' : '配息率（專屬）'}</div>
+        <input class="wk-rate-input${syncedClass}" type="number" step="0.0001" min="0"
+          value="${rate.toFixed(4)}"
+          onchange="updateRate('${ticker}',${wi},this.value,${synced})">
+      </div>
+      <div class="wk-result">
+        <div class="wk-usd">$${usd.toFixed(2)}</div>
+        <div class="wk-ntd">NT$${Math.round(ntd).toLocaleString()}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const badge = synced
+    ? `<span class="sync-dot">🔄 同步</span>`
+    : `<span class="private-dot">🔒 專屬</span>`;
+
+  const card = document.createElement('div');
+  card.className = 'etf-card';
+  card.innerHTML = `
+    <div class="etf-header">
+      <div class="etf-header-left">
+        <div class="etf-ticker">${ticker}</div>
+        ${badge}
+      </div>
+      <div class="etf-shares-wrap">
+        <span class="etf-shares-label">股數</span>
+        <input class="etf-shares-input" type="number" min="0" value="${shares}"
+          onchange="updateShares('${ticker}',this.value)">
+      </div>
+      <button class="etf-delete-btn" onclick="openDeleteEtfModal('${ticker}')">✕</button>
+    </div>
+    <div class="week-rows">
+      <div class="week-row-title">每週配息（扣稅後）</div>
+      ${wHTML}
+    </div>
+    <div class="etf-total-row">
+      <div class="etf-total-label">月配息合計</div>
+      <div class="etf-total-vals">
+        <div class="etf-total-usd">$${mUSD.toFixed(2)}</div>
+        <div class="etf-total-ntd">NT$${Math.round(mNTD).toLocaleString()}</div>
+      </div>
+    </div>`;
+  return card;
+}
+
+function renderHistory() {
+  const history = loadHistory(activeMemberId);
+  const el = document.getElementById('historyList');
+  if (!history.length) { el.innerHTML = '<div class="history-empty">尚無紀錄</div>'; return; }
+  const sorted = [...history].sort((a,b) => b.month.localeCompare(a.month));
+  const fx = fxRate();
+  el.innerHTML = '<div class="history-list">' + sorted.map(h => {
+    const ntd = h.usd * fx;
+    return `
+    <div class="history-row">
+      <div class="hist-month">${h.month.replace('-','年').replace(/^(\d+年)0?(\d+)$/,'$1$2月')}</div>
+      <div class="hist-vals">
+        <div class="hist-usd">$${h.usd.toFixed(2)}</div>
+        <div class="hist-ntd">NT$${Math.round(ntd).toLocaleString()}</div>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function renderMemberManage() {
+  const el = document.getElementById('memberManageList');
+  el.innerHTML = members.map(m => `
+    <div class="member-manage-row">
+      <div class="member-name-display">${m.name}</div>
+      <button class="member-rename-btn" onclick="openRenameMember('${m.id}')">✏️ 改名</button>
+      ${members.length > 1 ? `<button class="member-del-btn" onclick="openDeleteMember('${m.id}')">刪除</button>` : ''}
+    </div>`).join('');
+}
+
+// ── RATE UPDATE (core sync logic) ─────────────────────────
+function updateRate(ticker, wi, val, synced) {
+  const rate = parseFloat(val) || 0;
+  if (synced) {
+    // Update shared rates → all members auto-reflect
+    if (!sharedRates[ticker]) sharedRates[ticker] = [0,0,0,0];
+    sharedRates[ticker][wi] = rate;
+    save(SK_RATES, sharedRates);
+  } else {
+    // Update private weeks for this member only
+    const etfs = loadMemberEtfs(activeMemberId);
+    const etf = etfs.find(e => e.ticker === ticker);
+    if (etf) {
+      if (!etf.privateWeeks) etf.privateWeeks = [0,0,0,0,0];
+      etf.privateWeeks[wi] = rate;
+      saveMemberEtfs(activeMemberId, etfs);
+    }
+  }
+  renderAll();
+}
+
+function updateShares(ticker, val) {
+  const etfs = loadMemberEtfs(activeMemberId);
+  const etf = etfs.find(e => e.ticker === ticker);
+  if (etf) { etf.shares = parseFloat(val) || 0; saveMemberEtfs(activeMemberId, etfs); }
+  renderAll();
+}
+
+// ── ADD ETF ───────────────────────────────────────────────
+function openAddForm() {
+  document.getElementById('addForm').classList.add('open');
+  document.getElementById('addBtn').style.display = 'none';
+}
+function closeAddForm() {
+  document.getElementById('addForm').classList.remove('open');
+  document.getElementById('addBtn').style.display = '';
+  document.getElementById('f_ticker').value = '';
+  document.getElementById('f_shares').value = '';
+  document.getElementById('f_sync').checked = true;
+}
+function confirmAdd() {
+  const ticker = document.getElementById('f_ticker').value.trim().toUpperCase();
+  const shares = parseFloat(document.getElementById('f_shares').value) || 0;
+  const synced = document.getElementById('f_sync').checked;
+  if (!ticker) { alert('請填寫 ETF 代號'); return; }
+  const etfs = loadMemberEtfs(activeMemberId);
+  if (etfs.find(e => e.ticker === ticker)) { alert('此 ETF 已存在'); return; }
+  // Add to this member
+  etfs.push({ ticker, shares, synced, privateWeeks: [0,0,0,0] });
+  saveMemberEtfs(activeMemberId, etfs);
+  // Ensure shared rate entry exists
+  if (!sharedRates[ticker]) { sharedRates[ticker] = [0,0,0,0]; save(SK_RATES, sharedRates); }
+  closeAddForm(); renderAll();
+}
+
+// ── DELETE ETF ────────────────────────────────────────────
+function openDeleteEtfModal(ticker) {
+  pendingDeleteEtfTicker = ticker;
+  document.getElementById('deleteEtfBody').textContent = `確認從此成員中刪除 ${ticker}？`;
+  openModal('deleteEtfModal');
+}
+function confirmDeleteEtf() {
+  const etfs = loadMemberEtfs(activeMemberId).filter(e => e.ticker !== pendingDeleteEtfTicker);
+  saveMemberEtfs(activeMemberId, etfs);
+  closeModal('deleteEtfModal'); renderAll();
+}
+
+// ── RESET & SAVE ──────────────────────────────────────────
+function openResetModal() { openModal('resetModal'); }
+function confirmReset() {
+  const etfs = loadMemberEtfs(activeMemberId);
+  etfs.forEach(e => {
+    if (e.synced) {
+      // Clear shared rates — affects all members
+      sharedRates[e.ticker] = [0,0,0,0,0];
+    } else {
+      // Clear private weeks — always reinitialize
+      e.privateWeeks = [0,0,0,0,0];
+    }
+  });
+  saveMemberEtfs(activeMemberId, etfs);
+  save(SK_RATES, sharedRates);
+  closeModal('resetModal'); renderAll();
+}
+
+function openSaveModal() {
+  const now = new Date();
+  document.getElementById('saveMonthInput').value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  openModal('saveModal');
+}
+function confirmSaveMonth() {
+  const month = document.getElementById('saveMonthInput').value;
+  if (!month) { alert('請選擇月份'); return; }
+  const { tUSD } = getMemberTotal(activeMemberId);
+  const history = loadHistory(activeMemberId);
+  const idx = history.findIndex(h => h.month === month);
+  // Only store USD — NTD is always recalculated live from current fx rate
+  const entry = { month, usd: tUSD };
+  if (idx >= 0) history[idx] = entry; else history.push(entry);
+  saveHistory(activeMemberId, history);
+  closeModal('saveModal'); renderHistory();
+}
+
+function openClearHistoryModal() { openModal('clearHistModal'); }
+function confirmClearHistory() {
+  saveHistory(activeMemberId, []);
+  closeModal('clearHistModal'); renderHistory();
+}
+
+// ── MEMBER MANAGEMENT ─────────────────────────────────────
+function confirmAddMember() {
+  const name = document.getElementById('newMemberName').value.trim();
+  if (!name) { alert('請輸入名稱'); return; }
+  const id = 'm' + Date.now();
+  members.push({ id, name });
+  save(SK_MEMBERS, members);
+  document.getElementById('newMemberName').value = '';
+  closeModal('addMemberModal'); renderAll();
+}
+
+function openRenameMember(id) {
+  pendingRenameMemberId = id;
+  const m = members.find(x => x.id === id);
+  document.getElementById('renameMemberInput').value = m ? m.name : '';
+  openModal('renameMemberModal');
+}
+function confirmRenameMember() {
+  const name = document.getElementById('renameMemberInput').value.trim();
+  if (!name) { alert('請輸入名稱'); return; }
+  const m = members.find(x => x.id === pendingRenameMemberId);
+  if (m) { m.name = name; save(SK_MEMBERS, members); }
+  closeModal('renameMemberModal'); renderAll();
+}
+
+function openDeleteMember(id) {
+  pendingDeleteMemberId = id;
+  const m = members.find(x => x.id === id);
+  document.getElementById('deleteMemberBody').textContent = `確認刪除「${m ? m.name : ''}」及其所有資料？`;
+  openModal('deleteMemberModal');
+}
+function confirmDeleteMember() {
+  localStorage.removeItem(SK_ETFS(pendingDeleteMemberId));
+  localStorage.removeItem(SK_HIST(pendingDeleteMemberId));
+  members = members.filter(m => m.id !== pendingDeleteMemberId);
+  save(SK_MEMBERS, members);
+  if (activeMemberId === pendingDeleteMemberId) activeMemberId = members[0].id;
+  closeModal('deleteMemberModal'); renderAll();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── INIT ─────────────────────────────────────────────────
+async function initApp() {
+  await loadSiteData();
+  renderAll();
+  fetchFxRate();
+}
+
+initApp();
+</script>
+</body>
+</html>

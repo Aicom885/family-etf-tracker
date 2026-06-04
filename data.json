@@ -1,0 +1,43 @@
+{
+  "members": [
+    { "id": "m1", "name": "呂憲政" },
+    { "id": "m2", "name": "妻子" },
+    { "id": "m3", "name": "小孩1" },
+    { "id": "m4", "name": "小孩2" }
+  ],
+  "sharedRates": {
+    "TSLY": [0.2585, 0.2584, 0.267, 0.2955, 0],
+    "NVDY": [0.1148, 0.1111, 0.1161, 0.1401, 0],
+    "MSTY": [0.3137, 0.3051, 0.3038, 0.5211, 0],
+    "CONY": [0, 0, 0, 0, 0]
+  },
+  "memberEtfs": {
+    "m1": [
+      { "ticker": "TSLY", "shares": 90, "synced": true },
+      { "ticker": "NVDY", "shares": 1570, "synced": true },
+      { "ticker": "MSTY", "shares": 87, "synced": true }
+    ],
+    "m2": [
+      { "ticker": "TSLY", "shares": 0, "synced": true },
+      { "ticker": "NVDY", "shares": 0, "synced": true },
+      { "ticker": "MSTY", "shares": 0, "synced": true },
+      { "ticker": "CONY", "shares": 0, "synced": false, "privateWeeks": [0, 0, 0, 0, 0] }
+    ],
+    "m3": [
+      { "ticker": "TSLY", "shares": 0, "synced": true },
+      { "ticker": "NVDY", "shares": 0, "synced": true },
+      { "ticker": "MSTY", "shares": 0, "synced": true }
+    ],
+    "m4": [
+      { "ticker": "TSLY", "shares": 0, "synced": true },
+      { "ticker": "NVDY", "shares": 0, "synced": true },
+      { "ticker": "MSTY", "shares": 0, "synced": true }
+    ]
+  },
+  "memberHistory": {
+    "m1": [],
+    "m2": [],
+    "m3": [],
+    "m4": []
+  }
+}
