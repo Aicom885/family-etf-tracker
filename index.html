@@ -637,6 +637,9 @@ function renderFamilyBanner() {
 function renderMemberView() {
   const m = members.find(x => x.id === activeMemberId);
   if (!m) return;
+  // Clear month filter when switching members
+  const filterEl = document.getElementById('historyFilter');
+  if (filterEl) filterEl.value = '';
   const { tUSD, tNTD } = getMemberTotal(m.id);
   document.getElementById('memberUSDLabel').textContent = `${m.name} · USD`;
   document.getElementById('memberNTDLabel').textContent = `${m.name} · NTD`;
