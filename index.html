@@ -162,7 +162,14 @@
   .history-section { padding: 12px 16px 0; }
   .history-title { font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 700; color: var(--text); margin-bottom: 9px; display: flex; align-items: center; justify-content: space-between; }
   .history-clear { font-size: 0.6rem; color: var(--danger); font-family: 'DM Mono', monospace; background: none; border: 1px solid var(--border); border-radius: 5px; padding: 3px 7px; cursor: pointer; }
+  .history-search-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .history-search { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.82rem; padding: 7px 10px; outline: none; }
+  .history-search:focus { border-color: var(--accent2); }
+  .history-search-clear { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.72rem; padding: 7px 10px; cursor: pointer; white-space: nowrap; }
+  .history-search-clear:active { color: var(--accent); }
   .history-empty { font-size: 0.7rem; color: var(--muted); font-family: 'DM Mono', monospace; text-align: center; padding: 16px 0; }
+  .hist-resave { background: none; border: 1px solid rgba(240,180,41,0.3); border-radius: 5px; color: var(--accent); font-size: 0.6rem; font-family: 'DM Mono', monospace; padding: 3px 7px; cursor: pointer; white-space: nowrap; margin-top: 4px; display: block; }
+  .hist-resave:active { background: rgba(240,180,41,0.15); }
   .history-list { display: flex; flex-direction: column; gap: 7px; }
   .history-row { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 14px; display: flex; align-items: center; justify-content: space-between; }
   .hist-month { font-family: 'DM Mono', monospace; font-size: 0.76rem; color: var(--muted); }
@@ -249,10 +256,6 @@
 <div class="action-row" style="padding-top:8px;">
   <button class="btn-export" onclick="exportCSV('current')">📋 複製本人紀錄</button>
   <button class="btn-export-all" onclick="exportCSV('all')">🏠 複製全家紀錄</button>
-  <button class="btn-export-all" onclick="exportDataJSON()">⬇ 匯出資料檔</button>
-</div>
-<div class="action-row" style="padding-top:8px;">
-  <button class="btn-save-month" onclick="saveCloudData()">☁ 儲存到雲端</button>
 </div>
 
 <div id="etfList" class="etf-list"></div>
@@ -286,6 +289,11 @@
   <div class="history-title">
     <span>📅 <span id="historyMemberName">—</span> 的月配息紀錄</span>
     <button class="history-clear" onclick="openClearHistoryModal()">清除歷史</button>
+  </div>
+  <div class="history-search-row">
+    <input class="history-search" type="month" id="historyFilter" placeholder="篩選月份"
+      oninput="renderHistory()">
+    <button class="history-search-clear" onclick="document.getElementById('historyFilter').value='';renderHistory()">✕ 全部</button>
   </div>
   <div id="historyList"></div>
 </div>
@@ -388,9 +396,6 @@ const SK_MEMBERS  = 'fam_members_v1';
 const SK_RATES    = 'fam_shared_rates_v1';
 const SK_ETFS     = id => `fam_etfs_${id}`;
 const SK_HIST     = id => `fam_hist_${id}`;
-const DATA_FILE   = 'data.json';
-const CLOUD_API   = `${window.location.origin}/.netlify/functions/data`;
-const SK_ADMIN_PIN = 'fam_admin_pin_v1';
 
 // ── DEFAULTS ──────────────────────────────────────────────
 const DEFAULT_MEMBERS = [
@@ -437,144 +442,9 @@ function load(key, fallback) {
   return typeof fallback === 'function' ? fallback() : fallback;
 }
 function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
-function hasSavedLocalData() { return !!localStorage.getItem(SK_MEMBERS); }
-
-function cloneData(data) {
-  return JSON.parse(JSON.stringify(data));
-}
-
-function applySiteData(data) {
-  if (!data || typeof data !== 'object') return;
-  if (Array.isArray(data.members)) {
-    members = cloneData(data.members);
-    save(SK_MEMBERS, members);
-  }
-  if (data.sharedRates && typeof data.sharedRates === 'object') {
-    sharedRates = cloneData(data.sharedRates);
-    save(SK_RATES, sharedRates);
-  }
-  if (data.memberEtfs && typeof data.memberEtfs === 'object') {
-    Object.entries(data.memberEtfs).forEach(([mid, etfs]) => {
-      if (Array.isArray(etfs)) saveMemberEtfs(mid, cloneData(etfs));
-    });
-  }
-  if (data.memberHistory && typeof data.memberHistory === 'object') {
-    Object.entries(data.memberHistory).forEach(([mid, history]) => {
-      if (Array.isArray(history)) saveHistory(mid, cloneData(history));
-    });
-  }
-  if (members.length && !members.some(m => m.id === activeMemberId)) {
-    activeMemberId = members[0].id;
-  }
-}
-
-async function loadSiteData() {
-  try {
-    const cloudRes = await fetch(CLOUD_API + '?v=' + Date.now(), { cache: 'no-store' });
-    if (cloudRes.ok) {
-      const cloudData = await cloudRes.json();
-      applySiteData(cloudData);
-      loadedFromCloud = true;
-      const status = document.getElementById('fxStatus');
-      if (status) status.textContent = '已載入雲端資料';
-      return;
-    }
-  } catch(e) {
-    console.warn('雲端資料載入失敗，改讀 data.json', e);
-  }
-
-  if (hasSavedLocalData()) {
-    const status = document.getElementById('fxStatus');
-    if (status) status.textContent = '使用本機已儲存資料';
-    return;
-  }
-
-  try {
-    const res = await fetch(DATA_FILE + '?v=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) return;
-    const data = await res.json();
-    applySiteData(data);
-    const status = document.getElementById('fxStatus');
-    if (status) status.textContent = '已載入 data.json';
-  } catch(e) {
-    console.warn('data.json 載入失敗，使用本機資料', e);
-  }
-}
-
-function collectSiteData() {
-  const memberEtfs = {};
-  const memberHistory = {};
-  members.forEach(m => {
-    memberEtfs[m.id] = loadMemberEtfs(m.id);
-    memberHistory[m.id] = loadHistory(m.id);
-  });
-  return {
-    members,
-    sharedRates,
-    memberEtfs,
-    memberHistory
-  };
-}
-
-function exportDataJSON() {
-  const json = JSON.stringify(collectSiteData(), null, 2);
-  const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const today = new Date().toISOString().slice(0, 10);
-  a.href = url;
-  a.download = `data-${today}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showCopyToast('已下載資料檔，重新命名為 data.json 後部署到 Netlify');
-}
-
-async function saveCloudData() {
-  let pin = sessionStorage.getItem(SK_ADMIN_PIN) || '';
-  if (!pin) {
-    pin = prompt('請輸入管理 PIN，只有管理人可以儲存到雲端');
-    if (!pin) return;
-    sessionStorage.setItem(SK_ADMIN_PIN, pin);
-  }
-
-  try {
-    const res = await fetch(CLOUD_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-pin': pin
-      },
-      body: JSON.stringify(collectSiteData())
-    });
-    const rawText = await res.text();
-    let result = {};
-    try { result = rawText ? JSON.parse(rawText) : {}; } catch(e) {}
-
-    if (res.status === 401) {
-      sessionStorage.removeItem(SK_ADMIN_PIN);
-      alert('管理 PIN 不正確，請重新輸入。');
-      return;
-    }
-    if (res.status === 404) {
-      alert('找不到 Netlify Function。請確認不是只用拖拉上傳靜態檔，雲端儲存需要用 Git 或 Netlify CLI 部署整個專案。');
-      return;
-    }
-    if (!res.ok) {
-      alert(result.error || `儲存失敗，Netlify 回傳 HTTP ${res.status}。請到 Netlify 的 Functions / Deploy logs 查看 data function。`);
-      return;
-    }
-
-    applySiteData(collectSiteData());
-    showCopyToast('已儲存到雲端，全家重新整理後會看到最新資料');
-  } catch(e) {
-    alert(`儲存失敗：目前無法連線到 Netlify Function。\n\n錯誤：${e.message || e}\n\n請先關閉分頁重新開啟；若仍失敗，請清除這個網站的快取。`);
-  }
-}
 
 let members      = load(SK_MEMBERS, () => DEFAULT_MEMBERS.map(m => ({...m})));
-let sharedRates  = load(SK_RATES,   () => cloneData(DEFAULT_RATES));
+let sharedRates  = load(SK_RATES,   () => JSON.parse(JSON.stringify(DEFAULT_RATES)));
 
 function loadMemberEtfs(mid)    { return load(SK_ETFS(mid), () => JSON.parse(JSON.stringify(DEFAULT_ETFS[mid] || []))); }
 function saveMemberEtfs(mid, d) { save(SK_ETFS(mid), d); }
@@ -844,20 +714,48 @@ function buildETFCard(etfEntry) {
 function renderHistory() {
   const history = loadHistory(activeMemberId);
   const el = document.getElementById('historyList');
-  if (!history.length) { el.innerHTML = '<div class="history-empty">尚無紀錄</div>'; return; }
-  const sorted = [...history].sort((a,b) => b.month.localeCompare(a.month));
+  const filterEl = document.getElementById('historyFilter');
+  const filter = filterEl ? filterEl.value : '';
+  const filtered = filter ? history.filter(h => h.month === filter) : history;
+  if (!filtered.length) {
+    el.innerHTML = '<div class="history-empty">' + (filter ? '此月份無紀錄' : '尚無紀錄') + '</div>';
+    return;
+  }
+  const sorted = [...filtered].sort((a,b) => b.month.localeCompare(a.month));
   const fx = fxRate();
-  el.innerHTML = '<div class="history-list">' + sorted.map(h => {
+  const rows = sorted.map(h => {
     const ntd = h.usd * fx;
-    return `
-    <div class="history-row">
-      <div class="hist-month">${h.month.replace('-','年').replace(/^(\d+年)0?(\d+)$/,'$1$2月')}</div>
-      <div class="hist-vals">
-        <div class="hist-usd">$${h.usd.toFixed(2)}</div>
-        <div class="hist-ntd">NT$${Math.round(ntd).toLocaleString()}</div>
-      </div>
-    </div>`;
-  }).join('') + '</div>';
+    const label = h.month.replace('-', '年').replace(/^(\d+年)0?(\d+)$/, '$1$2月');
+    const row = document.createElement('div');
+    row.className = 'history-row';
+    row.innerHTML =
+      '<div class="hist-month">' + label +
+        '<button class="hist-resave" data-month="' + h.month + '">🔄 重新儲存當前值</button>' +
+      '</div>' +
+      '<div class="hist-vals">' +
+        '<div class="hist-usd">$' + h.usd.toFixed(2) + '</div>' +
+        '<div class="hist-ntd">NT$' + Math.round(ntd).toLocaleString() + '</div>' +
+      '</div>';
+    row.querySelector('.hist-resave').addEventListener('click', function() {
+      resaveMonth(this.getAttribute('data-month'));
+    });
+    return row;
+  });
+  el.innerHTML = '';
+  const list = document.createElement('div');
+  list.className = 'history-list';
+  rows.forEach(r => list.appendChild(r));
+  el.appendChild(list);
+}
+function resaveMonth(month) {
+  const { tUSD } = getMemberTotal(activeMemberId);
+  const history = loadHistory(activeMemberId);
+  const idx = history.findIndex(h => h.month === month);
+  const entry = { month, usd: tUSD };
+  if (idx >= 0) history[idx] = entry; else history.push(entry);
+  saveHistory(activeMemberId, history);
+  renderHistory();
+  showCopyToast(month.replace('-','年').replace(/^(\d+年)0?(\d+)$/,'$1$2月') + ' 已更新為當前配息值！');
 }
 
 function renderMemberManage() {
@@ -1023,13 +921,8 @@ function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // ── INIT ─────────────────────────────────────────────────
-async function initApp() {
-  await loadSiteData();
-  renderAll();
-  fetchFxRate();
-}
-
-initApp();
+renderAll();
+fetchFxRate();
 </script>
 </body>
 </html>
